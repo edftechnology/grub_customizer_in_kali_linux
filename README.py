@@ -30,7 +30,7 @@
 #     Ctrl + Alt + T
 #     ```
 
-# . Certifique-se de que seu sistema esteja limpo e atualizado.
+# 2. Certifique-se de que seu sistema esteja limpo e atualizado.
 # 
 #     2.1 Limpar o `cache` do gerenciador de pacotes `apt`. Especificamente, ele remove todos os arquivos de pacotes (`.deb`) baixados pelo `apt` e armazenados em `/var/cache/apt/archives/`. Digite o seguinte comando:
 #     ```bash
@@ -69,8 +69,7 @@
 # 
 #     2.8 Realmente atualizar os pacotes instalados para as suas versões mais recentes, com base na última vez que você executou `sudo apt update`. Digite o seguinte comando e pressione `Enter`:
 #     ```bash
-#     sudo apt full-upgrade -y
-#     ```
+#     sudo 
 
 # 3. **Instale o `Grub Customizer`:**
 # 
@@ -167,7 +166,7 @@
 #     ```
 # 
 
-# ## 3. Decisão de boot e arquitetura do GRUB (documentação de referência)
+# ## 3. Decisão de boot e arquitetura do `GRUB` (documentação de referência)
 # 
 # Esta seção concentra decisões de arquitetura de boot (evidências, justificativas e procedimentos). Ela **não** descreve o particionamento em si; isso fica em documentação específica de layout de disco.
 # 
@@ -175,7 +174,7 @@
 # 
 # Este sistema utiliza `MBR` + `Legacy BIOS` em vez de `GPT` + `UEFI` pelos seguintes motivos:
 # 
-# - Compatibilidade total com hardware Dell antigo.
+# - Compatibilidade total com _hardware_ Dell antigo.
 # - Dual-boot mais estável entre `Ubuntu` e `Kali`.
 # - Evita conflitos entre múltiplos `GRUBs` em `EFI`.
 # - Recuperação simples via `Live USB`.
@@ -193,7 +192,7 @@
 # - O `GRUB` ativo deve ser o do `Ubuntu`.
 # - Quando o `GRUB` do `Kali` assume, há falhas de boot (loop/splash travado).
 # - Estratégia adotada:
-#   - `GRUB` centralizado no `Ubuntu`.
+#   - `GRUB` centralizado no `Kali`.
 #   - `Kali` como entrada secundária no menu.
 # 
 # ### 3.4 Layout de boot funcional (resumo)
@@ -232,6 +231,137 @@
 #     update-grub
 #     exit
 #     ```
+# 
+
+# ## 4. GRUB no Kali: configuracao, layout e operacao (Legacy BIOS / MBR)
+# 
+# Este documento descreve como configurar o `GRUB` do `Kali Linux` para atuar
+# como bootloader principal do sistema, bem como reproduzir o layout classico
+# (tema azul padrao), conforme exibido durante o boot.
+# 
+# ### 4.1 Contexto do ambiente
+# 
+# - Sistema principal de boot: `Kali Linux`.
+# - Metodo de boot: `Legacy BIOS` + `MBR`.
+# - Disco: `/dev/nvme0n1`.
+# - `GRUB` instalado como: `i386-pc`.
+# - Sistemas detectados:
+#   - `Kali GNU/Linux`.
+#   - `Ubuntu 22.04 LTS`.
+#   - `Windows 10`.
+# 
+# ### 4.2 Modo de boot detectado
+# 
+# - Firmware: `Legacy BIOS` (nao `UEFI`).
+# - Evidencias:
+#   - `/sys/firmware/efi` inexistente.
+#   - `GRUB` instalado como `i386-pc`.
+#   - Boot realizado via `MBR` do disco `/dev/nvme0n1`.
+# 
+# > Observacao: em sistemas `Legacy`, nao existe particao `EFI`. Todo o controle
+# > de boot ocorre via `MBR` e arquivos em `/boot/grub`.
+# 
+# ### 4.3 Tornando o GRUB do Kali o bootloader principal
+# 
+# Isto garante que:
+# 
+# - O `GRUB` do `Kali` sobrescreva o `MBR`.
+# - O menu exibido ao ligar a maquina seja o do `Kali`.
+# - Outros sistemas sejam apenas entradas no menu.
+# 
+# Caso seja necessario reinstalar manualmente:
+# 
+# ```bash
+# sudo grub-install /dev/nvme0n1
+# sudo update-grub
+# ```
+# 
+# ### 4.4 Layout classico do GRUB (tema azul)
+# 
+# O layout exibido (fundo azul, fonte branca, sem imagem) corresponde
+# ao tema padrao do `GRUB`, sem custom themes.
+# 
+# Para garantir esse layout:
+# 
+# Arquivo principal:
+# 
+# - `/etc/default/grub`
+# 
+# Configuracao recomendada:
+# 
+# - `GRUB_TIMEOUT=10`
+# - `GRUB_TIMEOUT_STYLE=menu`
+# - `GRUB_DEFAULT=0`
+# - `GRUB_GFXMODE=text`
+# - `GRUB_TERMINAL=console`
+# 
+# Importante: nao definir `GRUB_THEME` garante que o `GRUB` utilize
+# o layout classico padrao.
+# 
+# Apos qualquer alteracao:
+# 
+# ```bash
+# sudo update-grub
+# ```
+# 
+# ### 4.5 Geracao automatica das entradas
+# 
+# O `Kali` detecta automaticamente outros sistemas via `os-prober`
+# (quando habilitado):
+# 
+# - `Ubuntu`.
+# - `Windows`.
+# - Outras instalacoes `Linux`.
+# 
+# As entradas sao geradas em:
+# 
+# - `/boot/grub/grub.cfg`
+# 
+# Nao edite esse arquivo manualmente.
+# 
+# ### 4.6 Entradas customizadas (opcional)
+# 
+# Entradas adicionais podem ser definidas em:
+# 
+# - `/etc/grub.d/40_custom`
+# 
+# Exemplo:
+# 
+# ```bash
+# menuentry "Sistema personalizado" {
+#     set root=(hd0,msdos7)
+#     linux /boot/vmlinuz root=/dev/nvme0n1p7 ro
+#     initrd /boot/initrd.img
+# }
+# ```
+# 
+# Sempre regenerar o `GRUB` apos alteracoes:
+# 
+# ```bash
+# sudo update-grub
+# ```
+# 
+# ### 4.7 Observacoes importantes
+# 
+# - Em sistemas `Legacy`, misturar `UEFI` e `BIOS` gera falhas de boot.
+# - Apenas um `GRUB` deve controlar o `MBR`.
+# - O `GRUB` do `Kali` mostrou-se mais estavel neste ambiente.
+# - Reboots podem resolver travamentos iniciais causados por
+#   inicializacao de drivers (`GPU`, `ACPI`, `initramfs`).
+# 
+# ### 4.8 Resultado final esperado
+# 
+# - `GRUB` do `Kali` exibido ao ligar a maquina.
+# - Layout azul classico.
+# - Entradas para `Kali`, `Ubuntu` e `Windows`.
+# - Boot funcional sem dependencia do `GRUB` do `Ubuntu`.
+# 
+# ### 4.9 Referencias
+# 
+# - `man grub-install`
+# - `man update-grub`
+# - <https://www.gnu.org/software/grub/>
+# - <https://www.kali.org/docs/troubleshooting/grub-recovery/>
 # 
 
 # ## Referências
